@@ -6,9 +6,9 @@ import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 import com.google.mediapipe.tasks.vision.objectdetector.ObjectDetectorResult
-import kotlin.math.min
+import kotlin.math.max
 
-class BoundingBoxOverlay (
+class BoundingBoxOverlay(
     context: Context, attrs: AttributeSet? = null
 ) : View(context, attrs) {
 
@@ -62,18 +62,14 @@ class BoundingBoxOverlay (
     }
 
     private fun imageRectToViewRect(l: Float, t: Float, r: Float, b: Float): RectF {
-        // image coords are in pixels (0..imageWidth, 0..imageHeight) or normalized depending on result.
-        // For safety, handle both normalized (<=1) and pixel coords (>1).
         val left = if (l <= 1f) l * imageWidth else l
         val top = if (t <= 1f) t * imageHeight else t
         val right = if (r <= 1f) r * imageWidth else r
         val bottom = if (b <= 1f) b * imageHeight else b
 
-        // Map to view coordinates with simple scale fit (fill). This assumes the AR view fills the whole view.
         val scaleX = width.toFloat() / imageWidth.toFloat()
         val scaleY = height.toFloat() / imageHeight.toFloat()
-        // choose scale to preserve aspect (fit center) — use same scale for both axes
-        val scale = min(scaleX, scaleY)
+        val scale = max(scaleX, scaleY)
 
         // compute letterbox offsets
         val offsetX = (width - imageWidth * scale) / 2f

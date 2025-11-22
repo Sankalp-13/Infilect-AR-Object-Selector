@@ -3,7 +3,6 @@ package com.sankalp.infilectarobjectselector
 import android.content.Context
 import android.graphics.Bitmap
 import android.os.SystemClock
-import androidx.camera.core.ImageProxy
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.framework.image.MPImage
 import com.google.mediapipe.tasks.core.BaseOptions
@@ -12,6 +11,8 @@ import com.google.mediapipe.tasks.vision.core.ImageProcessingOptions
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.objectdetector.ObjectDetector
 import com.google.mediapipe.tasks.vision.objectdetector.ObjectDetectorResult
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 class ObjectDetectorHelper(
     val context: Context,
@@ -24,10 +25,16 @@ class ObjectDetectorHelper(
     private var detector: ObjectDetector? = null
     private var rotation = 0
     private lateinit var options: ImageProcessingOptions
+    private val frameIndex = AtomicLong(0)       // strictly increasing counter for MediaPipe timestamps
+    private val inFlight = AtomicBoolean(false) // true while an async detect is running
 
     init { setup() }
 
     private fun setup() {
+
+        frameIndex.set(0)
+        inFlight.set(false)
+
         val base = BaseOptions.builder()
             .setModelAssetPath("efficientdet-lite0.tflite")
             .setDelegate(if (delegate == DELEGATE_GPU) Delegate.GPU else Delegate.CPU)
@@ -49,56 +56,44 @@ class ObjectDetectorHelper(
         detector = ObjectDetector.createFromOptions(context, detOpts)
     }
 
-    // Original method (if you still have camera image proxy in other flows)
-    fun detectLivestreamFrame(imageProxy: ImageProxy) {
-        val t = SystemClock.uptimeMillis()
-
-        val bmp = Bitmap.createBitmap(
-            imageProxy.width, imageProxy.height, Bitmap.Config.ARGB_8888
-        )
-        imageProxy.use { bmp.copyPixelsFromBuffer(imageProxy.planes[0].buffer) }
-
-        val rot = imageProxy.imageInfo.rotationDegrees
-        imageProxy.close()
-
-        if (rot != this@ObjectDetectorHelper.rotation) {
-            this@ObjectDetectorHelper.rotation = rot
-            detector?.close()
-            setup()
+    fun detectBitmap(bitmap: Bitmap, rotationDegrees: Int = 0) {
+        // Try to claim slot; if busy, drop this bitmap (prevent queue backlog)
+        if (!inFlight.compareAndSet(false, true)) {
             return
         }
-
-        val mpImage = BitmapImageBuilder(bmp).build()
-        detector?.detectAsync(mpImage, options, t)
-    }
-
-    // NEW: allow detection from a Bitmap (we use PixelCopy from AR view to capture)
-    fun detectBitmap(bitmap: Bitmap, rotationDegrees: Int = 0) {
-        val t = SystemClock.uptimeMillis()
 
         if (rotationDegrees != this@ObjectDetectorHelper.rotation) {
             this@ObjectDetectorHelper.rotation = rotationDegrees
             detector?.close()
             setup()
-            // continue with new setup; don't attempt immediate detect this frame
+            // release inFlight because we didn't call detect
+            inFlight.set(false)
             return
         }
 
         val mpImage: MPImage = BitmapImageBuilder(bitmap).build()
-        detector?.detectAsync(mpImage, options, t)
-    }
 
+        val t = frameIndex.incrementAndGet()
+        try {
+            detector?.detectAsync(mpImage, options, t)
+        } catch (e: Exception) {
+            inFlight.set(false)
+            listener.onError("detectAsync failed: ${e.message}")
+        }
+    }
     private fun deliverResult(res: ObjectDetectorResult, img: MPImage) {
+        // mark request completed BEFORE calling listener to allow next frame to be scheduled.
+        inFlight.set(false)
+
         val time = SystemClock.uptimeMillis() - res.timestampMs()
         listener.onResults(ResultBundle(listOf(res), time, img.height, img.width,
             this@ObjectDetectorHelper.rotation
         ))
     }
-
     private fun deliverError(e: RuntimeException) {
+        inFlight.set(false)
         listener.onError(e.message ?: "Unknown error")
     }
-
     data class ResultBundle(
         val results: List<ObjectDetectorResult>,
         val time: Long,
