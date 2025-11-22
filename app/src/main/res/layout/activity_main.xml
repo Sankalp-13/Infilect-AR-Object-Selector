@@ -4,25 +4,16 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- ArFragment (Sceneform) -->
+
     <io.github.sceneview.ar.ARSceneView
         android:id="@+id/arSceneView"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
 
-    <!-- Overlay for detection boxes that also handles taps -->
     <com.sankalp.infilectarobjectselector.BoundingBoxOverlay
         android:id="@+id/overlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- Optional UI: small button to force snapshot / debug -->
-    <Button
-        android:id="@+id/btn_snapshot"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Snapshot"
-        android:layout_margin="12dp"
-        android:layout_gravity="top|end" />
 </FrameLayout>
