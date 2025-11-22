@@ -61,7 +61,7 @@ class BoundingBoxOverlay(
         postInvalidate()
     }
 
-    private fun imageRectToViewRect(l: Float, t: Float, r: Float, b: Float): RectF {
+    public fun imageRectToViewRect(l: Float, t: Float, r: Float, b: Float): RectF {
         val left = if (l <= 1f) l * imageWidth else l
         val top = if (t <= 1f) t * imageHeight else t
         val right = if (r <= 1f) r * imageWidth else r

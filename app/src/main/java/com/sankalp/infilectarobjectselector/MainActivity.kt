@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.graphics.*
 import android.media.Image
 import android.os.*
+import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.internal.utils.ImageUtil.rotateBitmap
@@ -127,6 +128,22 @@ class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener 
     override fun onResults(bundle: ObjectDetectorHelper.ResultBundle) {
         runOnUiThread {
             overlay.setDetections(bundle, bundle.results)
+            for (res in bundle.results) {
+                val det = res.detections().firstOrNull() ?: continue
+                val box = det.boundingBox()
+
+
+
+                // NEW → find screen center for this bbox
+                val screenRect = overlay.imageRectToViewRect(
+                    box.left, box.top, box.right, box.bottom
+                )
+                val cx = (screenRect.left + screenRect.right) / 2f
+                val cy = (screenRect.top + screenRect.bottom) / 2f
+
+                // Auto-select the object
+                placeAnchorAtScreenPoint(cx, screenRect.bottom/1.1f)
+            }
         }
     }
 
@@ -135,16 +152,35 @@ class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener 
         val frame = try { session.update() } catch (_: Exception) { return }
 
         val hits = frame.hitTest(x, y)
-        if (hits.isEmpty()) {
-            Toast.makeText(this, "No raycast hit", Toast.LENGTH_SHORT).show()
-            return
-        }
+        if (hits.isEmpty()) return
 
         val hit = hits[0]
+        val pose = hit.hitPose
+
+        val newPos = Position(pose.tx(), pose.ty(), pose.tz())
+
+        if (isTooCloseToExistingAnchors(newPos)) {
+            Log.d("AR", "Skipped duplicate object (too close)")
+            return
+        }
 
         val anchor = hit.createAnchor()
         addAnchorNode(anchor)
         saveAnchorPose(anchor)
+    }
+
+    private fun isTooCloseToExistingAnchors(newPos: Position): Boolean {
+        for (node in placedCheckmarks) {
+            val existingPos = node.worldPosition
+            val dx = existingPos.x - newPos.x
+            val dy = existingPos.y - newPos.y
+            val dz = existingPos.z - newPos.z
+
+            val distance = kotlin.math.sqrt(dx*dx + dy*dy + dz*dz)
+
+            if (distance < 0.15f) return true
+        }
+        return false
     }
 
     private fun addAnchorNode(anchor: Anchor) {
