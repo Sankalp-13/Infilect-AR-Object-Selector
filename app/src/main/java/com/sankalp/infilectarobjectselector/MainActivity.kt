@@ -4,14 +4,12 @@ import android.annotation.SuppressLint
 import android.graphics.*
 import android.media.Image
 import android.os.*
-import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.internal.utils.ImageUtil.rotateBitmap
 import androidx.lifecycle.lifecycleScope
 import com.google.ar.core.Anchor
 import com.google.ar.core.Config
-//import com.google.ar.core.ImageFormat
 import com.google.ar.core.Pose
 import com.google.gson.Gson
 import io.github.sceneview.ar.ARSceneView
@@ -22,10 +20,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import com.google.ar.core.Session
 import com.google.ar.core.Frame
-//import com.google.ar.core.Image
 import com.google.ar.sceneform.rendering.ViewAttachmentManager
 import io.github.sceneview.node.Node
 import java.io.ByteArrayOutputStream
+import kotlin.div
 
 class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener {
 
@@ -55,10 +53,9 @@ class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener 
         )
 
         overlay.onBoxTap = { box, x, y ->
-            placeAnchorAtScreenPoint(x, y)
+            placeAnchorAtScreenPoint(x, box.bottom/1.1f )
         }
 
-        // FAST frame processing
         arSceneView.onSessionUpdated = { session, frame ->
             processFrame(frame)
         }
@@ -70,7 +67,7 @@ class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener 
 
         arSceneView.onFrame = {
             placedCheckmarks.forEach { node ->
-                node.lookAt(arSceneView.cameraNode.position)
+                node.lookAt(arSceneView.cameraNode.position,arSceneView.cameraNode.upDirection)
 
             }
         }
@@ -143,8 +140,7 @@ class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener 
             return
         }
 
-        // ⭐ DO NOT FILTER BY PLANE
-        val hit = hits[0]    // includes vertical surface hits
+        val hit = hits[0]
 
         val anchor = hit.createAnchor()
         addAnchorNode(anchor)
