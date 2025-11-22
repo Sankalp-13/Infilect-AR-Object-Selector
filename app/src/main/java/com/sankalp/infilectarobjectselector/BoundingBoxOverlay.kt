@@ -45,7 +45,6 @@ class BoundingBoxOverlay(
         for (res in results) {
             val first = res.detections().firstOrNull() ?: continue
             val bbox = first.boundingBox()
-            // boundingBox gives normalized coordinates? MediaPipe box coordinates are typically origin at top-left with values in image space
             val left = bbox.left
             val top = bbox.top
             val right = bbox.right

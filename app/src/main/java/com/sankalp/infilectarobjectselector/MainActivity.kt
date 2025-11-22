@@ -1,6 +1,5 @@
 package com.sankalp.infilectarobjectselector
 
-import android.annotation.SuppressLint
 import android.graphics.*
 import android.media.Image
 import android.os.*
@@ -24,7 +23,7 @@ import com.google.ar.core.Frame
 import com.google.ar.sceneform.rendering.ViewAttachmentManager
 import io.github.sceneview.node.Node
 import java.io.ByteArrayOutputStream
-import kotlin.div
+import kotlin.math.sqrt
 
 class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener {
 
@@ -48,7 +47,7 @@ class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener 
 
         detectorHelper = ObjectDetectorHelper(
             context = this,
-            threshold = 0.4f,
+            threshold = 0.35f,
             maxResults = 5,
             listener = this
         )
@@ -56,6 +55,7 @@ class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener 
         overlay.onBoxTap = { box, x, y ->
             placeAnchorAtScreenPoint(x, box.bottom/1.1f )
         }
+
 
         arSceneView.onSessionUpdated = { session, frame ->
             processFrame(frame)
@@ -68,12 +68,13 @@ class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener 
 
         arSceneView.onFrame = {
             placedCheckmarks.forEach { node ->
-                node.lookAt(arSceneView.cameraNode.position,arSceneView.cameraNode.upDirection)
+                node.lookAt(arSceneView.cameraNode.position, arSceneView.cameraNode.upDirection);
 
             }
         }
     }
 
+    //TODO: refactor function name
     private fun enableVerticalShelfMode(session: Session) {
         arSceneView.configureSession { _, config ->
             config.instantPlacementMode =
@@ -85,7 +86,6 @@ class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener 
         }
     }
 
-    @SuppressLint("RestrictedApi")
     private fun processFrame(frame: Frame) {
         val image = try { frame.acquireCameraImage() }
         catch (_: Exception) { return }
@@ -99,8 +99,6 @@ class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener 
         }
     }
 
-
-    // Convert YUV → Bitmap
     private fun imageToBitmap(image: Image): Bitmap {
         val yBuffer = image.planes[0].buffer
         val uBuffer = image.planes[1].buffer
@@ -147,6 +145,7 @@ class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener 
         }
     }
 
+
     private fun placeAnchorAtScreenPoint(x: Float, y: Float) {
         val session = arSceneView.session ?: return
         val frame = try { session.update() } catch (_: Exception) { return }
@@ -169,19 +168,7 @@ class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener 
         saveAnchorPose(anchor)
     }
 
-    private fun isTooCloseToExistingAnchors(newPos: Position): Boolean {
-        for (node in placedCheckmarks) {
-            val existingPos = node.worldPosition
-            val dx = existingPos.x - newPos.x
-            val dy = existingPos.y - newPos.y
-            val dz = existingPos.z - newPos.z
 
-            val distance = kotlin.math.sqrt(dx*dx + dy*dy + dz*dz)
-
-            if (distance < 0.15f) return true
-        }
-        return false
-    }
 
     private fun addAnchorNode(anchor: Anchor) {
         val anchorNode = AnchorNode(arSceneView.engine, anchor)
@@ -248,5 +235,36 @@ class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener 
             val anchor = runCatching { session.createAnchor(pose) }.getOrNull() ?: continue
             addAnchorNode(anchor)
         }
+    }
+
+    private fun isTooCloseToExistingAnchors(newPos: Position): Boolean {
+        val cameraPos = arSceneView.cameraNode.worldPosition
+
+        // distance from camera to new object
+        val dz = newPos.z - cameraPos.z
+        val dy = newPos.y - cameraPos.y
+        val dx = newPos.x - cameraPos.x
+        val distToCamera = sqrt(dx*dx + dy*dy + dz*dz)
+
+        // ---- Adaptive threshold ----
+        val base = 0.12f     // 12 cm minimum
+        val factor = 0.07f   // + 7 cm per meter of distance
+        val threshold = base + factor * distToCamera
+
+        for (node in placedCheckmarks) {
+            val oldPos = node.worldPosition
+
+            val ddx = oldPos.x - newPos.x
+            val ddy = oldPos.y - newPos.y
+            val ddz = oldPos.z - newPos.z
+
+            val dist = sqrt(ddx*ddx + ddy*ddy + ddz*ddz)
+
+            if (dist < threshold) {
+                Log.d("AR", "SKIPPED: too close ($dist m < $threshold m)")
+                return true
+            }
+        }
+        return false
     }
 }

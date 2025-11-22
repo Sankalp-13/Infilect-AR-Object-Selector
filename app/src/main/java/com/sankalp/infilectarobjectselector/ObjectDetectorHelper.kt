@@ -25,8 +25,8 @@ class ObjectDetectorHelper(
     private var detector: ObjectDetector? = null
     private var rotation = 0
     private lateinit var options: ImageProcessingOptions
-    private val frameIndex = AtomicLong(0)       // strictly increasing counter for MediaPipe timestamps
-    private val inFlight = AtomicBoolean(false) // true while an async detect is running
+    private val frameIndex = AtomicLong(0)
+    private val inFlight = AtomicBoolean(false)
 
     init { setup() }
 
@@ -82,7 +82,6 @@ class ObjectDetectorHelper(
         }
     }
     private fun deliverResult(res: ObjectDetectorResult, img: MPImage) {
-        // mark request completed BEFORE calling listener to allow next frame to be scheduled.
         inFlight.set(false)
 
         val time = SystemClock.uptimeMillis() - res.timestampMs()
