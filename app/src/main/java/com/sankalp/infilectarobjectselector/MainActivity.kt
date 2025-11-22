@@ -46,10 +46,6 @@ class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener 
         arSceneView = findViewById(R.id.arSceneView)
         overlay = findViewById(R.id.overlay)
 
-        // Force capture button
-        findViewById<Button>(R.id.btn_snapshot)?.setOnClickListener {
-            forceSingleCapture()
-        }
 
         detectorHelper = ObjectDetectorHelper(
             context = this,
@@ -105,11 +101,6 @@ class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener 
         }
     }
 
-    private fun forceSingleCapture() {
-        val frame = arSceneView.session?.update() ?: return
-        processFrame(frame)
-        Toast.makeText(this, "Scanning…", Toast.LENGTH_SHORT).show()
-    }
 
     // Convert YUV → Bitmap
     private fun imageToBitmap(image: Image): Bitmap {
