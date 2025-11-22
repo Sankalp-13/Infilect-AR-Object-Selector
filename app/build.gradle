@@ -56,4 +56,16 @@ dependencies {
     implementation libs.androidx.camera.lifecycle
     // CameraX View class
     implementation libs.androidx.camera.view
+
+    // ARCore
+    implementation 'com.google.ar:core:1.51.0' // ARCore runtime library. (See docs to pick latest.) :contentReference[oaicite:1]{index=1}
+
+    // Sceneform (UI helpers)
+    implementation "io.github.sceneview:arsceneview:2.3.1"
+    implementation "io.github.sceneview:sceneview:2.3.1"
+
+    // Sceneform docs & maintained forks exist; pick versions compatible with your Android Studio. :contentReference[oaicite:2]{index=2}
+
+    // JSON helper
+    implementation 'com.google.code.gson:gson:2.13.2'
 }

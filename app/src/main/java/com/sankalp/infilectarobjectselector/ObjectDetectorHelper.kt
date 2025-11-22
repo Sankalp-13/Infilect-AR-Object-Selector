@@ -25,7 +25,6 @@ class ObjectDetectorHelper(
     private var rotation = 0
     private lateinit var options: ImageProcessingOptions
 
-
     init { setup() }
 
     private fun setup() {
@@ -50,6 +49,7 @@ class ObjectDetectorHelper(
         detector = ObjectDetector.createFromOptions(context, detOpts)
     }
 
+    // Original method (if you still have camera image proxy in other flows)
     fun detectLivestreamFrame(imageProxy: ImageProxy) {
         val t = SystemClock.uptimeMillis()
 
@@ -69,6 +69,22 @@ class ObjectDetectorHelper(
         }
 
         val mpImage = BitmapImageBuilder(bmp).build()
+        detector?.detectAsync(mpImage, options, t)
+    }
+
+    // NEW: allow detection from a Bitmap (we use PixelCopy from AR view to capture)
+    fun detectBitmap(bitmap: Bitmap, rotationDegrees: Int = 0) {
+        val t = SystemClock.uptimeMillis()
+
+        if (rotationDegrees != this@ObjectDetectorHelper.rotation) {
+            this@ObjectDetectorHelper.rotation = rotationDegrees
+            detector?.close()
+            setup()
+            // continue with new setup; don't attempt immediate detect this frame
+            return
+        }
+
+        val mpImage: MPImage = BitmapImageBuilder(bitmap).build()
         detector?.detectAsync(mpImage, options, t)
     }
 
