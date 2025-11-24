@@ -18,7 +18,7 @@ class ObjectDetectorHelper(
     val context: Context,
     var threshold: Float = 0.45f,
     var maxResults: Int = 3,
-    var delegate: Int = DELEGATE_CPU,
+    var delegate: Int = DELEGATE_GPU,
     val listener: DetectorListener
 ) {
 

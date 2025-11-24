@@ -1,16 +1,17 @@
 package com.sankalp.infilectarobjectselector
 
+import android.annotation.SuppressLint
 import android.graphics.*
 import android.media.Image
 import android.os.*
 import android.util.Log
+import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.internal.utils.ImageUtil.rotateBitmap
 import androidx.lifecycle.lifecycleScope
 import com.google.ar.core.Anchor
 import com.google.ar.core.Config
-import com.google.ar.core.Pose
 import com.google.gson.Gson
 import io.github.sceneview.ar.ARSceneView
 import io.github.sceneview.ar.node.AnchorNode
@@ -31,9 +32,8 @@ class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener 
     private lateinit var overlay: BoundingBoxOverlay
     private lateinit var detectorHelper: ObjectDetectorHelper
 
-    private val prefsName = "anchors_prefs"
-    private val savedKey = "saved_anchor_poses"
-    private val gson = Gson()
+    private var autoMode = false
+
 
     private val placedCheckmarks = mutableListOf<Node>()
 
@@ -56,6 +56,13 @@ class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener 
             placeAnchorAtScreenPoint(x, box.bottom/1.1f )
         }
 
+        val toggleBtn = findViewById<Button>(R.id.btnToggleMode)
+        toggleBtn.setOnClickListener {
+            autoMode = !autoMode
+            toggleBtn.text = if (autoMode) "AUTO: ON" else "AUTO: OFF"
+        }
+
+
 
         arSceneView.onSessionUpdated = { session, frame ->
             processFrame(frame)
@@ -63,7 +70,6 @@ class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener 
 
         arSceneView.onSessionCreated = { session ->
             enableVerticalShelfMode(session)
-            restoreSavedAnchors(session)
         }
 
         arSceneView.onFrame = {
@@ -74,18 +80,18 @@ class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener 
         }
     }
 
-    //TODO: refactor function name
     private fun enableVerticalShelfMode(session: Session) {
         arSceneView.configureSession { _, config ->
             config.instantPlacementMode =
                 Config.InstantPlacementMode.LOCAL_Y_UP
 
             config.depthMode =
-                if (session.isDepthModeSupported(Config.DepthMode.AUTOMATIC))
+                if (session.isDepthModeSupported(Config .DepthMode.AUTOMATIC))
                     Config.DepthMode.AUTOMATIC else Config.DepthMode.DISABLED
         }
     }
 
+    @SuppressLint("RestrictedApi")
     private fun processFrame(frame: Frame) {
         val image = try { frame.acquireCameraImage() }
         catch (_: Exception) { return }
@@ -126,13 +132,17 @@ class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener 
     override fun onResults(bundle: ObjectDetectorHelper.ResultBundle) {
         runOnUiThread {
             overlay.setDetections(bundle, bundle.results)
+
+            if (!autoMode) return@runOnUiThread  // DO NOTHING
+
+
             for (res in bundle.results) {
                 val det = res.detections().firstOrNull() ?: continue
                 val box = det.boundingBox()
 
 
 
-                // NEW → find screen center for this bbox
+                // find screen center for this bbox
                 val screenRect = overlay.imageRectToViewRect(
                     box.left, box.top, box.right, box.bottom
                 )
@@ -165,7 +175,6 @@ class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener 
 
         val anchor = hit.createAnchor()
         addAnchorNode(anchor)
-        saveAnchorPose(anchor)
     }
 
 
@@ -191,49 +200,9 @@ class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener 
                     anchorNode.addChildNode(viewNode)
                     viewNode.position = Position(0f, 0f, 0f)
 
-                    // track it to rotate toward camera
                     placedCheckmarks.add(viewNode)
                 }
             )
-        }
-    }
-
-    private data class SavedPose(
-        val tx: Float, val ty: Float, val tz: Float,
-        val qx: Float, val qy: Float, val qz: Float, val qw: Float
-    )
-
-    private fun saveAnchorPose(anchor: Anchor) {
-        val p = anchor.pose
-        val saved = SavedPose(
-            p.tx(), p.ty(), p.tz(),
-            p.qx(), p.qy(), p.qz(), p.qw()
-        )
-
-        val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
-        val list = gson.fromJson(
-            prefs.getString(savedKey, "[]"),
-            Array<SavedPose>::class.java
-        )?.toMutableList() ?: mutableListOf()
-
-        list.add(saved)
-        prefs.edit().putString(savedKey, gson.toJson(list)).apply()
-    }
-
-    private fun restoreSavedAnchors(session: Session) {
-        val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
-        val saved = gson.fromJson(
-            prefs.getString(savedKey, "[]"),
-            Array<SavedPose>::class.java
-        ) ?: return
-
-        for (sp in saved) {
-            val pose = Pose(
-                floatArrayOf(sp.tx, sp.ty, sp.tz),
-                floatArrayOf(sp.qx, sp.qy, sp.qz, sp.qw)
-            )
-            val anchor = runCatching { session.createAnchor(pose) }.getOrNull() ?: continue
-            addAnchorNode(anchor)
         }
     }
 
