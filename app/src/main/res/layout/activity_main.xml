@@ -4,12 +4,10 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-
     <io.github.sceneview.ar.ARSceneView
         android:id="@+id/arSceneView"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
-
 
     <com.sankalp.infilectarobjectselector.BoundingBoxOverlay
         android:id="@+id/overlay"
@@ -25,5 +23,44 @@
         android:layout_margin="12dp"
         android:layout_gravity="top|end"/>
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_gravity="bottom"
+        android:padding="16dp"
+        android:background="#99000000"> <TextView
+        android:id="@+id/tvDistance"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Fallback Depth: 0.7 m"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="8dp"/>
+
+        <SeekBar
+            android:id="@+id/sbDistance"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="30"
+            android:progress="7" />
+
+        <TextView
+            android:id="@+id/tvThreshold"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Model Threshold: 0.35"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:layout_marginTop="12dp"/>
+
+        <SeekBar
+            android:id="@+id/sbThreshold"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="100"
+            android:progress="35" />
+    </LinearLayout>
 
 </FrameLayout>

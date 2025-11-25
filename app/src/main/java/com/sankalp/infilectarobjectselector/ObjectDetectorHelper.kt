@@ -56,6 +56,11 @@ class ObjectDetectorHelper(
         detector = ObjectDetector.createFromOptions(context, detOpts)
     }
 
+    fun updateThreshold(newValue: Float) {
+        threshold = newValue
+        setup()
+    }
+
     fun detectBitmap(bitmap: Bitmap, rotationDegrees: Int = 0) {
         // Try to claim slot; if busy, drop this bitmap (prevent queue backlog)
         if (!inFlight.compareAndSet(false, true)) {
