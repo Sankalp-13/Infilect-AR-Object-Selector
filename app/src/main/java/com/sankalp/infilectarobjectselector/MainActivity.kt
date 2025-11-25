@@ -192,8 +192,6 @@ class MainActivity : AppCompatActivity(), ObjectDetectorHelper.DetectorListener 
             val anchor = bestHit.createAnchor()
             addAnchorNode(anchor)
         } else {
-            // No change needed here, just logging
-            // Log.w("AR", "HitTest failed. Using Raycast Fallback: $fallbackDistance m")
             placeFreeFloatingAnchor(x, y, frame)
         }
     }
